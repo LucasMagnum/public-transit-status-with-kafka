@@ -30,7 +30,14 @@ class TransformedStation(faust.Record):
 
 app = faust.App("stations-stream-x", broker="kafka://localhost:9092", store="memory://")
 topic = app.topic("org.chicago.cta.connectors.stations", value_type=Station)
-out_topic = app.topic("org.chicago.cta.stations.table.v1", partitions=3, value_type=TransformedStation)
+out_topic = app.topic("org.chicago.cta.stations.table.v1", partitions=1, value_type=TransformedStation)
+
+table = app.Table(
+    "stations_table",
+    default=TransformedStation,
+    partitions=1,
+    changelog_topic=out_topic,
+)
 
 
 @app.agent(topic)
@@ -53,7 +60,7 @@ async def process_messages(stations):
             line=line
         )
 
-        await out_topic.send(value=record)
+        table[station.station_id] = record
 
 
 if __name__ == "__main__":
